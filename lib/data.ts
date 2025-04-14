@@ -1,4 +1,5 @@
-import type { Player, GarData, PlayerStat } from "./types"
+import type { Player, PlayerStat } from "./types"
+import { isClient } from "@/lib/utils"
 
 // Only import mysql on the server side
 let mysql: any = null
@@ -70,9 +71,6 @@ async function getPool() {
   }
   return pool
 }
-
-// Check if we're in a browser environment (client-side)
-const isClient = typeof window !== "undefined"
 
 // Function to get all players
 export async function getPlayers(): Promise<Player[]> {
@@ -150,16 +148,18 @@ export async function getPlayers(): Promise<Player[]> {
 // Function to get player by ID
 export async function getPlayerById(id: number): Promise<Player | null> {
   if (isClient) {
+    console.log(`Client-side: Using mock data for player ID ${id}`)
     return mockPlayers.find((p) => p.id === id) || null
   }
 
   try {
     const pool = await getPool()
     if (!pool) {
-      console.warn("MySQL pool not available, using mock data")
+      console.warn(`MySQL pool not available, using mock data for player ID ${id}`)
       return mockPlayers.find((p) => p.id === id) || null
     }
 
+    console.log(`Fetching player with ID ${id} from database`)
     const [rows] = await pool.query(
       `
       SELECT 
@@ -177,7 +177,6 @@ export async function getPlayerById(id: number): Promise<Player | null> {
                  WHEN pc.value_category = 'Bargain' THEN 'Player provides excellent value relative to projected cost.'
                  WHEN pc.value_category = 'Fair Deal' THEN 'Contract value aligns well with expected performance.'
                  WHEN pc.value_category = 'Overpay' THEN 'Contract exceeds expected value based on projected performance.'
-                 ELSE 'Contract value assessment pending.'
                  END) as valueAssessment,
         (s.goals_24_25 + s.a1_24_25) as recentProduction,
         s.gar_24_25 as recentGar,
@@ -202,10 +201,13 @@ export async function getPlayerById(id: number): Promise<Player | null> {
 
     const players = rows as Player[]
     if (players.length === 0) {
-      return null
+      console.log(`No player found with ID ${id} in database, using mock data`)
+      return mockPlayers.find((p) => p.id === id) || null
     }
 
     const player = players[0]
+    console.log(`Found player in database: ${player.name} (ID: ${player.id})`)
+
     return {
       ...player,
       // Ensure numeric values are properly typed
@@ -219,6 +221,7 @@ export async function getPlayerById(id: number): Promise<Player | null> {
     }
   } catch (error) {
     console.error(`Failed to fetch player with id ${id}:`, error)
+    console.log(`Falling back to mock data for player ID ${id}`)
     return mockPlayers.find((p) => p.id === id) || null // Fallback to mock data
   }
 }
@@ -254,7 +257,6 @@ export async function getPlayersByIds(ids: number[]): Promise<Player[]> {
                  WHEN pc.value_category = 'Bargain' THEN 'Player provides excellent value relative to projected cost.'
                  WHEN pc.value_category = 'Fair Deal' THEN 'Contract value aligns well with expected performance.'
                  WHEN pc.value_category = 'Overpay' THEN 'Contract exceeds expected value based on projected performance.'
-                 ELSE 'Contract value assessment pending.'
                  END) as valueAssessment,
         (s.goals_24_25 + s.a1_24_25) as recentProduction,
         s.gar_24_25 as recentGar,
@@ -292,6 +294,13 @@ export async function getPlayersByIds(ids: number[]): Promise<Player[]> {
     console.error("Failed to fetch players:", error)
     return mockPlayers.filter((p) => ids.includes(p.id)) // Fallback to mock data
   }
+}
+
+// Define the GarData type
+export interface GarData {
+  playerId: number
+  season: string
+  gar: number
 }
 
 // Function to get player GAR data
@@ -416,7 +425,10 @@ export async function getPlayerStats(playerId: number): Promise<PlayerStat[]> {
     console.log("Executing query to fetch player stats")
 
     // First, check if the player exists in the stats table
-    const [playerCheck] = await pool.query(`SELECT player_id FROM stats WHERE player_id = ?`, [playerId])
+    const [playerCheck] = await pool.query(
+      `SELECT player_id, player_name, position, prev_team FROM stats WHERE player_id = ?`,
+      [playerId],
+    )
 
     if (Array.isArray(playerCheck) && playerCheck.length === 0) {
       console.warn(`No player found with ID ${playerId} in stats table`)
@@ -432,70 +444,101 @@ export async function getPlayerStats(playerId: number): Promise<PlayerStat[]> {
     }
 
     // Log the raw player data for debugging
-    console.log("Raw player data:", playerData[0])
+    console.log(`Raw player data for ID ${playerId}:`, JSON.stringify(playerData[0], null, 2))
 
     // Create stats for each season using the data from the single row
     const player = playerData[0]
     const position = player.position || "Unknown"
     const team = player.prev_team || "Unknown"
+    const playerName = player.player_name || "Unknown"
+
+    console.log(`Processing stats for ${playerName} (${position}) on ${team}`)
 
     // Create an array of stats for each season
-    const stats: PlayerStat[] = [
-      // 2022-23 Season
-      {
+    const stats: PlayerStat[] = []
+
+    // Helper function to check if a season has meaningful data
+    const seasonHasData = (seasonSuffix: string) => {
+      const hasGoals = player[`goals_${seasonSuffix}`] !== undefined && player[`goals_${seasonSuffix}`] !== null
+      const hasAssists = player[`a1_${seasonSuffix}`] !== undefined && player[`a1_${seasonSuffix}`] !== null
+      const hasTOI = player[`toi_${seasonSuffix}`] !== undefined && player[`toi_${seasonSuffix}`] !== null
+      const hasGAR = player[`gar_${seasonSuffix}`] !== undefined && player[`gar_${seasonSuffix}`] !== null
+
+      return hasGoals || hasAssists || hasTOI || hasGAR
+    }
+
+    // Only add seasons that have data
+    // 2022-23 Season
+    if (seasonHasData("22_23")) {
+      stats.push({
         playerId: playerId,
         season: "2022-23",
         team: team,
         position: position,
-        gamesPlayed: 82, // Default value
-        goals: player.goals_22_23,
-        assists: player.a1_22_23,
-        points: player.goals_22_23 + player.a1_22_23,
-        timeOnIce: player.toi_22_23,
-        giveaways: player.giveaways_22_23,
-        takeaways: player.takeaways_22_23,
-        individualCorsiFor: player.icf_22_23,
-        individualExpectedGoals: player.ixg_22_23,
-        goalsAboveReplacement: player.gar_22_23,
-        winsAboveReplacement: player.war_22_23,
-      },
-      // 2023-24 Season
-      {
+        gamesPlayed: player.gp_22_23 || 82, // Default to 82 if not specified
+        goals: player.goals_22_23 !== undefined ? Number(player.goals_22_23) : undefined,
+        assists: player.a1_22_23 !== undefined ? Number(player.a1_22_23) : undefined,
+        points:
+          player.goals_22_23 !== undefined && player.a1_22_23 !== undefined
+            ? Number(player.goals_22_23) + Number(player.a1_22_23)
+            : undefined,
+        timeOnIce: player.toi_22_23 !== undefined ? Number(player.toi_22_23) : undefined,
+        giveaways: player.giveaways_22_23 !== undefined ? Number(player.giveaways_22_23) : undefined,
+        takeaways: player.takeaways_22_23 !== undefined ? Number(player.takeaways_22_23) : undefined,
+        individualCorsiFor: player.icf_22_23 !== undefined ? Number(player.icf_22_23) : undefined,
+        individualExpectedGoals: player.ixg_22_23 !== undefined ? Number(player.ixg_22_23) : undefined,
+        goalsAboveReplacement: player.gar_22_23 !== undefined ? Number(player.gar_22_23) : undefined,
+        winsAboveReplacement: player.war_22_23 !== undefined ? Number(player.war_22_23) : undefined,
+      })
+    }
+
+    // 2023-24 Season
+    if (seasonHasData("23_24")) {
+      stats.push({
         playerId: playerId,
         season: "2023-24",
         team: team,
         position: position,
-        gamesPlayed: 82, // Default value
-        goals: player.goals_23_24,
-        assists: player.a1_23_24,
-        points: player.goals_23_24 + player.a1_23_24,
-        timeOnIce: player.toi_23_24,
-        giveaways: player.giveaways_23_24,
-        takeaways: player.takeaways_23_24,
-        individualCorsiFor: player.icf_23_24,
-        individualExpectedGoals: player.ixg_23_24,
-        goalsAboveReplacement: player.gar_23_24,
-        winsAboveReplacement: player.war_23_24,
-      },
-      // 2024-25 Season
-      {
+        gamesPlayed: player.gp_23_24 || 82, // Default to 82 if not specified
+        goals: player.goals_23_24 !== undefined ? Number(player.goals_23_24) : undefined,
+        assists: player.a1_23_24 !== undefined ? Number(player.a1_23_24) : undefined,
+        points:
+          player.goals_23_24 !== undefined && player.a1_23_24 !== undefined
+            ? Number(player.goals_23_24) + Number(player.a1_23_24)
+            : undefined,
+        timeOnIce: player.toi_23_24 !== undefined ? Number(player.toi_23_24) : undefined,
+        giveaways: player.giveaways_23_24 !== undefined ? Number(player.giveaways_23_24) : undefined,
+        takeaways: player.takeaways_23_24 !== undefined ? Number(player.takeaways_23_24) : undefined,
+        individualCorsiFor: player.icf_23_24 !== undefined ? Number(player.icf_23_24) : undefined,
+        individualExpectedGoals: player.ixg_23_24 !== undefined ? Number(player.ixg_23_24) : undefined,
+        goalsAboveReplacement: player.gar_23_24 !== undefined ? Number(player.gar_23_24) : undefined,
+        winsAboveReplacement: player.war_23_24 !== undefined ? Number(player.war_23_24) : undefined,
+      })
+    }
+
+    // 2024-25 Season
+    if (seasonHasData("24_25")) {
+      stats.push({
         playerId: playerId,
         season: "2024-25",
         team: team,
         position: position,
-        gamesPlayed: 82, // Default value
-        goals: player.goals_24_25,
-        assists: player.a1_24_25,
-        points: player.goals_24_25 + player.a1_24_25,
-        timeOnIce: player.toi_24_25,
-        giveaways: player.giveaways_24_25,
-        takeaways: player.takeaways_24_25,
-        individualCorsiFor: player.icf_24_25,
-        individualExpectedGoals: player.ixg_24_25,
-        goalsAboveReplacement: player.gar_24_25,
-        winsAboveReplacement: player.war_24_25,
-      },
-    ]
+        gamesPlayed: player.gp_24_25 || 82, // Default to 82 if not specified
+        goals: player.goals_24_25 !== undefined ? Number(player.goals_24_25) : undefined,
+        assists: player.a1_24_25 !== undefined ? Number(player.a1_24_25) : undefined,
+        points:
+          player.goals_24_25 !== undefined && player.a1_24_25 !== undefined
+            ? Number(player.goals_24_25) + Number(player.a1_24_25)
+            : undefined,
+        timeOnIce: player.toi_24_25 !== undefined ? Number(player.toi_24_25) : undefined,
+        giveaways: player.giveaways_24_25 !== undefined ? Number(player.giveaways_24_25) : undefined,
+        takeaways: player.takeaways_24_25 !== undefined ? Number(player.takeaways_24_25) : undefined,
+        individualCorsiFor: player.icf_24_25 !== undefined ? Number(player.icf_24_25) : undefined,
+        individualExpectedGoals: player.ixg_24_25 !== undefined ? Number(player.ixg_24_25) : undefined,
+        goalsAboveReplacement: player.gar_24_25 !== undefined ? Number(player.gar_24_25) : undefined,
+        winsAboveReplacement: player.war_24_25 !== undefined ? Number(player.war_24_25) : undefined,
+      })
+    }
 
     console.log(`Created ${stats.length} stat entries for player ID ${playerId}`)
     return stats
@@ -751,6 +794,9 @@ const mockPlayerStats: PlayerStat[] = [
     individualExpectedGoals: 38.5,
     goalsAboveReplacement: 22.1,
     winsAboveReplacement: 3.7,
+    timeOnIce: 1722,
+    giveaways: 62,
+    takeaways: 92,
   },
   // McDavid 2023-24
   {
@@ -774,6 +820,9 @@ const mockPlayerStats: PlayerStat[] = [
     individualExpectedGoals: 36.8,
     goalsAboveReplacement: 24.5,
     winsAboveReplacement: 4.1,
+    timeOnIce: 1600,
+    giveaways: 58,
+    takeaways: 88,
   },
   // McDavid 2024-25
   {
@@ -797,6 +846,9 @@ const mockPlayerStats: PlayerStat[] = [
     individualExpectedGoals: 37.6,
     goalsAboveReplacement: 23.8,
     winsAboveReplacement: 4.0,
+    timeOnIce: 1680,
+    giveaways: 60,
+    takeaways: 90,
   },
 
   // Shesterkin 2022-23
@@ -819,6 +871,9 @@ const mockPlayerStats: PlayerStat[] = [
     qualityStartPercentage: 0.724,
     goalsAboveReplacement: 20.8,
     winsAboveReplacement: 3.5,
+    timeOnIce: 3480,
+    giveaways: 2,
+    takeaways: 1,
   },
   // Shesterkin 2023-24
   {
@@ -840,6 +895,9 @@ const mockPlayerStats: PlayerStat[] = [
     qualityStartPercentage: 0.718,
     goalsAboveReplacement: 22.1,
     winsAboveReplacement: 3.7,
+    timeOnIce: 3720,
+    giveaways: 3,
+    takeaways: 2,
   },
   // Shesterkin 2024-25
   {
@@ -861,5 +919,8 @@ const mockPlayerStats: PlayerStat[] = [
     qualityStartPercentage: 0.705,
     goalsAboveReplacement: 19.5,
     winsAboveReplacement: 3.3,
+    timeOnIce: 3300,
+    giveaways: 2,
+    takeaways: 1,
   },
 ]

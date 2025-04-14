@@ -1,10 +1,10 @@
-export interface Player {
+export type Player = {
   id: number
   name: string
   age: number
   position: string
   team: string
-  contractType: string // "UFA" or "RFA"
+  contractType: string
   projectedAav: number
   projectedTerm: number
   valueTier: string
@@ -16,20 +16,18 @@ export interface Player {
   goalsAgainstAverage?: number
 }
 
-export interface GarData {
+export type GarData = {
   playerId: number
   season: string
   gar: number
 }
 
-export interface PlayerStat {
+export type PlayerStat = {
   playerId: number
   season: string
   team: string
   position: string
   gamesPlayed: number
-
-  // Skater stats
   goals?: number
   assists?: number
   points?: number
@@ -38,19 +36,6 @@ export interface PlayerStat {
   powerPlayGoals?: number
   shortHandedGoals?: number
   gameWinningGoals?: number
-  timeOnIce?: number
-  giveaways?: number
-  takeaways?: number
-
-  // Goalie stats
-  wins?: number
-  losses?: number
-  otLosses?: number
-  savePercentage?: number
-  goalsAgainstAverage?: number
-  shutouts?: number
-
-  // Advanced stats
   corsiForePercentage?: number
   expectedGoals?: number
   expectedGoalsDifferential?: number
@@ -58,11 +43,18 @@ export interface PlayerStat {
   individualExpectedGoals?: number
   goalsAboveReplacement?: number
   winsAboveReplacement?: number
-
-  // Advanced goalie stats
+  wins?: number
+  losses?: number
+  otLosses?: number
+  savePercentage?: number
+  goalsAgainstAverage?: number
+  shutouts?: number
   goalsSavedAboveAverage?: number
   highDangerSavePercentage?: number
   mediumDangerSavePercentage?: number
   lowDangerSavePercentage?: number
   qualityStartPercentage?: number
+  timeOnIce?: number
+  giveaways?: number
+  takeaways?: number
 }
