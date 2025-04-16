@@ -4,7 +4,7 @@ import { getPlayerById, getPlayerGarData, getPlayerStats } from "@/lib/data"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, TrendingUp } from 'lucide-react'
 import { GarChart } from "@/components/gar-chart"
 import { PlayerStatsTable } from "@/components/player-stats-table"
 
@@ -15,20 +15,27 @@ interface PlayerPageProps {
 }
 
 export default async function PlayerPage({ params }: PlayerPageProps) {
+  console.log("[Server] Rendering player page for ID:", params.id)
+  
   const playerId = Number.parseInt(params.id)
 
   if (isNaN(playerId)) {
     notFound()
   }
 
+  console.log("[Server] Fetching player data for ID:", playerId)
   const player = await getPlayerById(playerId)
 
   if (!player) {
     notFound()
   }
 
+  console.log("[Server] Fetching GAR data for player ID:", playerId)
   const garData = await getPlayerGarData(playerId)
+  
+  console.log("[Server] Fetching stats for player ID:", playerId)
   const playerStats = await getPlayerStats(playerId)
+  console.log("[Server] Stats fetched:", playerStats.length, "seasons")
 
   const getValueTierBadge = (valueTier: string) => {
     switch (valueTier) {
@@ -78,7 +85,10 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
               {/* Add Projected GAR 2025-26 Section if available */}
               {player.projectedGar2526 !== undefined && (
                 <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-md">
-                  <h3 className="text-sm font-medium text-muted-foreground">Projected GAR 2025-26</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <TrendingUp className="h-4 w-4" />
+                    Projected GAR 2025-26
+                  </h3>
                   <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                     {player.projectedGar2526.toFixed(1)}
                   </p>
@@ -116,6 +126,7 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
             <CardDescription>Last 3 seasons performance data</CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Pass the pre-fetched stats to the component */}
             <PlayerStatsTable stats={playerStats} position={player.position} />
           </CardContent>
         </Card>
