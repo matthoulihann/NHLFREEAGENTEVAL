@@ -7,11 +7,11 @@ import type { PlayerStat } from "@/lib/types"
 
 interface PlayerStatsTableProps {
   stats: PlayerStat[]
-  position: string
+  position?: string // Make position optional
 }
 
 export function PlayerStatsTable({ stats, position }: PlayerStatsTableProps) {
-  const [activeTab, setActiveTab] = useState("standard")
+  const [activeTab, setActiveTab] = useState("requested") // Set "requested" as default
 
   if (stats.length === 0) {
     return <div>No stats available</div>
@@ -24,17 +24,35 @@ export function PlayerStatsTable({ stats, position }: PlayerStatsTableProps) {
     return seasonB - seasonA
   })
 
+  // Determine if player is a goalie based on position or stats
+  // If position is missing, try to infer from the stats
+  const isGoalie = position === "G" || 
+                  (position === undefined && 
+                   stats.some(stat => 
+                     stat.position === "G" || 
+                     stat.savePercentage !== undefined || 
+                     stat.goalsAgainstAverage !== undefined
+                   ))
+
   return (
-    <Tabs defaultValue="standard" onValueChange={setActiveTab}>
+    <Tabs defaultValue="requested" onValueChange={setActiveTab}>
       <TabsList className="mb-4">
+        <TabsTrigger value="requested">Key Stats</TabsTrigger>
         <TabsTrigger value="standard">Standard</TabsTrigger>
         <TabsTrigger value="advanced">Advanced</TabsTrigger>
       </TabsList>
+      <TabsContent value="requested">
+        {isGoalie ? (
+          <GoalieStandardStats stats={sortedStats} />
+        ) : (
+          <SkaterRequestedStats stats={sortedStats} />
+        )}
+      </TabsContent>
       <TabsContent value="standard">
-        {position === "G" ? <GoalieStandardStats stats={sortedStats} /> : <SkaterStandardStats stats={sortedStats} />}
+        {isGoalie ? <GoalieStandardStats stats={sortedStats} /> : <SkaterStandardStats stats={sortedStats} />}
       </TabsContent>
       <TabsContent value="advanced">
-        {position === "G" ? <GoalieAdvancedStats stats={sortedStats} /> : <SkaterAdvancedStats stats={sortedStats} />}
+        {isGoalie ? <GoalieAdvancedStats stats={sortedStats} /> : <SkaterAdvancedStats stats={sortedStats} />}
       </TabsContent>
     </Tabs>
   )
@@ -73,6 +91,63 @@ function SkaterStandardStats({ stats }: { stats: PlayerStat[] }) {
               <TableCell>{stat.powerPlayGoals}</TableCell>
               <TableCell>{stat.shortHandedGoals}</TableCell>
               <TableCell>{stat.gameWinningGoals}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
+// New component for the requested stats
+function SkaterRequestedStats({ stats }: { stats: PlayerStat[] }) {
+  // Format time on ice (convert minutes to MM:SS format)
+  const formatTOI = (minutes: number | undefined) => {
+    if (minutes === undefined) return "-"
+
+    // Convert to minutes per game (assuming 82 games)
+    const minutesPerGame = minutes / 82
+
+    // Format as MM:SS
+    const mins = Math.floor(minutesPerGame)
+    const secs = Math.round((minutesPerGame - mins) * 60)
+    return `${mins}:${secs.toString().padStart(2, "0")}`
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Season</TableHead>
+            <TableHead>Team</TableHead>
+            <TableHead>GP</TableHead>
+            <TableHead>G</TableHead>
+            <TableHead>A1</TableHead>
+            <TableHead>P</TableHead>
+            <TableHead>TOI/GP</TableHead>
+            <TableHead>Giveaways</TableHead>
+            <TableHead>Takeaways</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {stats.map((stat) => (
+            <TableRow key={stat.season}>
+              <TableCell className="font-medium">{stat.season}</TableCell>
+              <TableCell>{stat.team}</TableCell>
+              <TableCell>{stat.gamesPlayed}</TableCell>
+              <TableCell>{stat.goals !== undefined ? stat.goals : "-"}</TableCell>
+              <TableCell>{stat.assists !== undefined ? stat.assists : "-"}</TableCell>
+              <TableCell>
+                {stat.points !== undefined
+                  ? stat.points
+                  : stat.goals !== undefined && stat.assists !== undefined
+                  ? Number(stat.goals) + Number(stat.assists)
+                  : "-"}
+              </TableCell>
+              <TableCell>{formatTOI(stat.timeOnIce)}</TableCell>
+              <TableCell>{stat.giveaways !== undefined ? stat.giveaways : "-"}</TableCell>
+              <TableCell>{stat.takeaways !== undefined ? stat.takeaways : "-"}</TableCell>
             </TableRow>
           ))}
         </TableBody>
