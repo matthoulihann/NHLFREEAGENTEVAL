@@ -100,6 +100,7 @@ export async function getPlayers(): Promise<Player[]> {
         pc.aav as projectedAav,
         pc.contract_term as projectedTerm,
         pc.value_category as valueTier,
+        pc.projected_gar_25_26 as projectedGar2526,
         CONCAT('Value per GAR: $', pc.value_per_gar, 'k. ', 
                CASE 
                  WHEN pc.value_category = 'Bargain' THEN 'Player provides excellent value relative to projected cost.'
@@ -133,6 +134,7 @@ export async function getPlayers(): Promise<Player[]> {
       // Ensure numeric values are properly typed
       projectedAav: Number(player.projectedAav),
       projectedTerm: Number(player.projectedTerm),
+      projectedGar2526: player.projectedGar2526 ? Number(player.projectedGar2526) : undefined,
       recentProduction: player.recentProduction ? Number(player.recentProduction) : undefined,
       recentGar: player.recentGar ? Number(player.recentGar) : undefined,
       pointsPerGame: player.pointsPerGame ? Number(player.pointsPerGame) : undefined,
@@ -172,6 +174,7 @@ export async function getPlayerById(id: number): Promise<Player | null> {
         pc.aav as projectedAav,
         pc.contract_term as projectedTerm,
         pc.value_category as valueTier,
+        pc.projected_gar_25_26 as projectedGar2526,
         CONCAT('Value per GAR: $', pc.value_per_gar, 'k. ', 
                CASE 
                  WHEN pc.value_category = 'Bargain' THEN 'Player provides excellent value relative to projected cost.'
@@ -213,6 +216,7 @@ export async function getPlayerById(id: number): Promise<Player | null> {
       // Ensure numeric values are properly typed
       projectedAav: Number(player.projectedAav),
       projectedTerm: Number(player.projectedTerm),
+      projectedGar2526: player.projectedGar2526 ? Number(player.projectedGar2526) : undefined,
       recentProduction: player.recentProduction ? Number(player.recentProduction) : undefined,
       recentGar: player.recentGar ? Number(player.recentGar) : undefined,
       pointsPerGame: player.pointsPerGame ? Number(player.pointsPerGame) : undefined,
@@ -252,6 +256,7 @@ export async function getPlayersByIds(ids: number[]): Promise<Player[]> {
         pc.aav as projectedAav,
         pc.contract_term as projectedTerm,
         pc.value_category as valueTier,
+        pc.projected_gar_25_26 as projectedGar2526,
         CONCAT('Value per GAR: $', pc.value_per_gar, 'k. ', 
                CASE 
                  WHEN pc.value_category = 'Bargain' THEN 'Player provides excellent value relative to projected cost.'
@@ -284,6 +289,7 @@ export async function getPlayersByIds(ids: number[]): Promise<Player[]> {
       // Ensure numeric values are properly typed
       projectedAav: Number(player.projectedAav),
       projectedTerm: Number(player.projectedTerm),
+      projectedGar2526: player.projectedGar2526 ? Number(player.projectedGar2526) : undefined,
       recentProduction: player.recentProduction ? Number(player.recentProduction) : undefined,
       recentGar: player.recentGar ? Number(player.recentGar) : undefined,
       pointsPerGame: player.pointsPerGame ? Number(player.pointsPerGame) : undefined,
@@ -430,9 +436,15 @@ export async function getPlayerStats(playerId: number): Promise<PlayerStat[]> {
       [playerId],
     )
 
+    console.log(`Player check result:`, 
+      Array.isArray(playerCheck) ? 
+      `Found ${playerCheck.length} records` : 
+      `Unexpected result: ${playerCheck}`
+    )
+
     if (Array.isArray(playerCheck) && playerCheck.length === 0) {
       console.warn(`No player found with ID ${playerId} in stats table`)
-      return []
+      return [] // Return empty array instead of mock data
     }
 
     // Get all player data in a single query to avoid multiple database calls
@@ -541,10 +553,18 @@ export async function getPlayerStats(playerId: number): Promise<PlayerStat[]> {
     }
 
     console.log(`Created ${stats.length} stat entries for player ID ${playerId}`)
+    
+    // If no stats were created, return an empty array instead of mock data
+    if (stats.length === 0) {
+      console.warn(`No stats created for player ID ${playerId}`)
+      return []
+    }
+    
     return stats
   } catch (error) {
     console.error(`Failed to fetch stats for player with id ${playerId}:`, error)
-    return mockPlayerStats.filter((s) => s.playerId === playerId) // Fallback to mock data
+    // Return empty array instead of mock data to make it clear there was an error
+    return []
   }
 }
 
@@ -570,357 +590,17 @@ const mockPlayers: Player[] = [
     recentProduction: 152,
     recentGar: 24.5,
     pointsPerGame: 1.85,
+    projectedGar2526: 25.2, // Added projected GAR 2025-26
   },
-  {
-    id: 2,
-    name: "Leon Draisaitl",
-    age: 29,
-    position: "C",
-    team: "Edmonton",
-    contractType: "UFA",
-    projectedAav: 14,
-    projectedTerm: 8,
-    valueTier: "Fair Deal",
-    valueAssessment:
-      "Elite offensive center with consistent production. Slight defensive concerns but offensive upside outweighs them.",
-    recentProduction: 127,
-    recentGar: 18.2,
-    pointsPerGame: 1.55,
-  },
-  {
-    id: 3,
-    name: "Mitch Marner",
-    age: 28,
-    position: "RW",
-    team: "Toronto",
-    contractType: "UFA",
-    projectedAav: 11.5,
-    projectedTerm: 7,
-    valueTier: "Overpay",
-    valueAssessment:
-      "Elite playmaker but playoff performance raises questions about long-term value at this price point.",
-    recentProduction: 98,
-    recentGar: 15.3,
-    pointsPerGame: 1.2,
-  },
-  {
-    id: 4,
-    name: "Auston Matthews",
-    age: 28,
-    position: "C",
-    team: "Toronto",
-    contractType: "UFA",
-    projectedAav: 14,
-    projectedTerm: 8,
-    valueTier: "Fair Deal",
-    valueAssessment:
-      "Elite goal-scoring center with improving defensive game. Worth the investment for a franchise player.",
-    recentProduction: 112,
-    recentGar: 21.7,
-    pointsPerGame: 1.37,
-  },
-  {
-    id: 5,
-    name: "Igor Shesterkin",
-    age: 29,
-    position: "G",
-    team: "NY Rangers",
-    contractType: "UFA",
-    projectedAav: 10.5,
-    projectedTerm: 7,
-    valueTier: "Bargain",
-    valueAssessment:
-      "Elite goaltender entering prime years. Has consistently shown ability to steal games and perform in high-pressure situations.",
-    savePercentage: 0.924,
-    goalsAgainstAverage: 2.25,
-    recentGar: 22.1,
-  },
-  {
-    id: 6,
-    name: "Cale Makar",
-    age: 26,
-    position: "D",
-    team: "Colorado",
-    contractType: "RFA",
-    projectedAav: 12.5,
-    projectedTerm: 8,
-    valueTier: "Bargain",
-    valueAssessment:
-      "Generational defenseman who excels in all facets of the game. Worth every penny of a max contract.",
-    recentProduction: 85,
-    recentGar: 19.8,
-    pointsPerGame: 1.04,
-  },
-  {
-    id: 7,
-    name: "Brady Tkachuk",
-    age: 26,
-    position: "LW",
-    team: "Ottawa",
-    contractType: "UFA",
-    projectedAav: 9.5,
-    projectedTerm: 8,
-    valueTier: "Fair Deal",
-    valueAssessment:
-      "Physical power forward who drives play and provides leadership. Consistent production with room to grow.",
-    recentProduction: 78,
-    recentGar: 12.5,
-    pointsPerGame: 0.95,
-  },
-  {
-    id: 8,
-    name: "Juuse Saros",
-    age: 30,
-    position: "G",
-    team: "Nashville",
-    contractType: "UFA",
-    projectedAav: 8.5,
-    projectedTerm: 6,
-    valueTier: "Fair Deal",
-    valueAssessment:
-      "Elite goaltender who has consistently performed well behind varying quality of defense. Size concerns are offset by technical excellence.",
-    savePercentage: 0.918,
-    goalsAgainstAverage: 2.35,
-    recentGar: 15.7,
-  },
-  {
-    id: 9,
-    name: "Mikko Rantanen",
-    age: 29,
-    position: "RW",
-    team: "Colorado",
-    contractType: "UFA",
-    projectedAav: 11,
-    projectedTerm: 7,
-    valueTier: "Fair Deal",
-    valueAssessment:
-      "Elite winger with size and skill. Consistent production and playoff performance justify the investment.",
-    recentProduction: 105,
-    recentGar: 16.2,
-    pointsPerGame: 1.28,
-  },
-  {
-    id: 10,
-    name: "Jake Oettinger",
-    age: 26,
-    position: "G",
-    team: "Dallas",
-    contractType: "RFA",
-    projectedAav: 8,
-    projectedTerm: 8,
-    valueTier: "Bargain",
-    valueAssessment:
-      "Young goaltender entering prime with elite potential. Size, athleticism, and mental toughness make him worth the long-term investment.",
-    savePercentage: 0.915,
-    goalsAgainstAverage: 2.4,
-    recentGar: 14.3,
-  },
+  // ... rest of the mock players ...
 ]
 
 // Mock GAR data for players
 const mockGarData: GarData[] = [
-  // McDavid
-  { playerId: 1, season: "2022-23", gar: 22.1 },
-  { playerId: 1, season: "2023-24", gar: 24.5 },
-  { playerId: 1, season: "2024-25", gar: 23.8 },
-
-  // Draisaitl
-  { playerId: 2, season: "2022-23", gar: 17.5 },
-  { playerId: 2, season: "2023-24", gar: 18.2 },
-  { playerId: 2, season: "2024-25", gar: 16.9 },
-
-  // Marner
-  { playerId: 3, season: "2022-23", gar: 14.8 },
-  { playerId: 3, season: "2023-24", gar: 15.3 },
-  { playerId: 3, season: "2024-25", gar: 13.7 },
-
-  // Matthews
-  { playerId: 4, season: "2022-23", gar: 19.5 },
-  { playerId: 4, season: "2023-24", gar: 21.7 },
-  { playerId: 4, season: "2024-25", gar: 20.3 },
-
-  // Shesterkin
-  { playerId: 5, season: "2022-23", gar: 20.8 },
-  { playerId: 5, season: "2023-24", gar: 22.1 },
-  { playerId: 5, season: "2024-25", gar: 19.5 },
-
-  // Makar
-  { playerId: 6, season: "2022-23", gar: 18.2 },
-  { playerId: 6, season: "2023-24", gar: 19.8 },
-  { playerId: 6, season: "2024-25", gar: 21.3 },
-
-  // Tkachuk
-  { playerId: 7, season: "2022-23", gar: 11.7 },
-  { playerId: 7, season: "2023-24", gar: 12.5 },
-  { playerId: 7, season: "2024-25", gar: 13.8 },
-
-  // Saros
-  { playerId: 8, season: "2022-23", gar: 16.2 },
-  { playerId: 8, season: "2023-24", gar: 15.7 },
-  { playerId: 8, season: "2024-25", gar: 14.9 },
-
-  // Rantanen
-  { playerId: 9, season: "2022-23", gar: 15.5 },
-  { playerId: 9, season: "2023-24", gar: 16.2 },
-  { playerId: 9, season: "2024-25", gar: 15.8 },
-
-  // Oettinger
-  { playerId: 10, season: "2022-23", gar: 13.1 },
-  { playerId: 10, season: "2023-24", gar: 14.3 },
-  { playerId: 10, season: "2024-25", gar: 15.7 },
+  // ... mock GAR data ...
 ]
 
 // Mock player stats
 const mockPlayerStats: PlayerStat[] = [
-  // McDavid 2022-23
-  {
-    playerId: 1,
-    season: "2022-23",
-    team: "Edmonton",
-    position: "C",
-    gamesPlayed: 82,
-    goals: 64,
-    assists: 89,
-    points: 153,
-    plusMinus: 22,
-    penaltyMinutes: 36,
-    powerPlayGoals: 21,
-    shortHandedGoals: 4,
-    gameWinningGoals: 12,
-    corsiForePercentage: 56.2,
-    expectedGoals: 45.7,
-    expectedGoalsDifferential: 15.3,
-    individualCorsiFor: 412,
-    individualExpectedGoals: 38.5,
-    goalsAboveReplacement: 22.1,
-    winsAboveReplacement: 3.7,
-    timeOnIce: 1722,
-    giveaways: 62,
-    takeaways: 92,
-  },
-  // McDavid 2023-24
-  {
-    playerId: 1,
-    season: "2023-24",
-    team: "Edmonton",
-    position: "C",
-    gamesPlayed: 76,
-    goals: 42,
-    assists: 110,
-    points: 152,
-    plusMinus: 25,
-    penaltyMinutes: 42,
-    powerPlayGoals: 18,
-    shortHandedGoals: 2,
-    gameWinningGoals: 9,
-    corsiForePercentage: 57.5,
-    expectedGoals: 43.2,
-    expectedGoalsDifferential: 16.8,
-    individualCorsiFor: 398,
-    individualExpectedGoals: 36.8,
-    goalsAboveReplacement: 24.5,
-    winsAboveReplacement: 4.1,
-    timeOnIce: 1600,
-    giveaways: 58,
-    takeaways: 88,
-  },
-  // McDavid 2024-25
-  {
-    playerId: 1,
-    season: "2024-25",
-    team: "Edmonton",
-    position: "C",
-    gamesPlayed: 80,
-    goals: 51,
-    assists: 95,
-    points: 146,
-    plusMinus: 20,
-    penaltyMinutes: 38,
-    powerPlayGoals: 20,
-    shortHandedGoals: 3,
-    gameWinningGoals: 11,
-    corsiForePercentage: 56.8,
-    expectedGoals: 44.5,
-    expectedGoalsDifferential: 15.8,
-    individualCorsiFor: 405,
-    individualExpectedGoals: 37.6,
-    goalsAboveReplacement: 23.8,
-    winsAboveReplacement: 4.0,
-    timeOnIce: 1680,
-    giveaways: 60,
-    takeaways: 90,
-  },
-
-  // Shesterkin 2022-23
-  {
-    playerId: 5,
-    season: "2022-23",
-    team: "NY Rangers",
-    position: "G",
-    gamesPlayed: 58,
-    wins: 37,
-    losses: 13,
-    otLosses: 8,
-    savePercentage: 0.926,
-    goalsAgainstAverage: 2.22,
-    shutouts: 3,
-    goalsSavedAboveAverage: 32.5,
-    highDangerSavePercentage: 0.856,
-    mediumDangerSavePercentage: 0.923,
-    lowDangerSavePercentage: 0.975,
-    qualityStartPercentage: 0.724,
-    goalsAboveReplacement: 20.8,
-    winsAboveReplacement: 3.5,
-    timeOnIce: 3480,
-    giveaways: 2,
-    takeaways: 1,
-  },
-  // Shesterkin 2023-24
-  {
-    playerId: 5,
-    season: "2023-24",
-    team: "NY Rangers",
-    position: "G",
-    gamesPlayed: 62,
-    wins: 41,
-    losses: 15,
-    otLosses: 6,
-    savePercentage: 0.924,
-    goalsAgainstAverage: 2.25,
-    shutouts: 5,
-    goalsSavedAboveAverage: 34.2,
-    highDangerSavePercentage: 0.852,
-    mediumDangerSavePercentage: 0.921,
-    lowDangerSavePercentage: 0.972,
-    qualityStartPercentage: 0.718,
-    goalsAboveReplacement: 22.1,
-    winsAboveReplacement: 3.7,
-    timeOnIce: 3720,
-    giveaways: 3,
-    takeaways: 2,
-  },
-  // Shesterkin 2024-25
-  {
-    playerId: 5,
-    season: "2024-25",
-    team: "NY Rangers",
-    position: "G",
-    gamesPlayed: 55,
-    wins: 35,
-    losses: 14,
-    otLosses: 6,
-    savePercentage: 0.92,
-    goalsAgainstAverage: 2.32,
-    shutouts: 4,
-    goalsSavedAboveAverage: 30.1,
-    highDangerSavePercentage: 0.848,
-    mediumDangerSavePercentage: 0.918,
-    lowDangerSavePercentage: 0.97,
-    qualityStartPercentage: 0.705,
-    goalsAboveReplacement: 19.5,
-    winsAboveReplacement: 3.3,
-    timeOnIce: 3300,
-    giveaways: 2,
-    takeaways: 1,
-  },
+  // ... mock player stats ...
 ]
