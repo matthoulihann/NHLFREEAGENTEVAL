@@ -26,13 +26,12 @@ export function PlayerStatsTable({ stats, position }: PlayerStatsTableProps) {
 
   // Determine if player is a goalie based on position or stats
   // If position is missing, try to infer from the stats
-  const isGoalie = position === "G" || 
-                  (position === undefined && 
-                   stats.some(stat => 
-                     stat.position === "G" || 
-                     stat.savePercentage !== undefined || 
-                     stat.goalsAgainstAverage !== undefined
-                   ))
+  const isGoalie =
+    position === "G" ||
+    (position === undefined &&
+      stats.some(
+        (stat) => stat.position === "G" || stat.savePercentage !== undefined || stat.goalsAgainstAverage !== undefined,
+      ))
 
   return (
     <Tabs defaultValue="requested" onValueChange={setActiveTab}>
@@ -42,11 +41,7 @@ export function PlayerStatsTable({ stats, position }: PlayerStatsTableProps) {
         <TabsTrigger value="advanced">Advanced</TabsTrigger>
       </TabsList>
       <TabsContent value="requested">
-        {isGoalie ? (
-          <GoalieStandardStats stats={sortedStats} />
-        ) : (
-          <SkaterRequestedStats stats={sortedStats} />
-        )}
+        {isGoalie ? <GoalieStandardStats stats={sortedStats} /> : <SkaterRequestedStats stats={sortedStats} />}
       </TabsContent>
       <TabsContent value="standard">
         {isGoalie ? <GoalieStandardStats stats={sortedStats} /> : <SkaterStandardStats stats={sortedStats} />}
@@ -142,8 +137,8 @@ function SkaterRequestedStats({ stats }: { stats: PlayerStat[] }) {
                 {stat.points !== undefined
                   ? stat.points
                   : stat.goals !== undefined && stat.assists !== undefined
-                  ? Number(stat.goals) + Number(stat.assists)
-                  : "-"}
+                    ? Number(stat.goals) + Number(stat.assists)
+                    : "-"}
               </TableCell>
               <TableCell>{formatTOI(stat.timeOnIce)}</TableCell>
               <TableCell>{stat.giveaways !== undefined ? stat.giveaways : "-"}</TableCell>

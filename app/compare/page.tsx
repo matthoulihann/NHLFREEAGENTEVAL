@@ -51,12 +51,14 @@ export default async function ComparePage({ searchParams }: ComparePageProps) {
     notFound()
   }
 
+  console.log("[Server] Fetching players for comparison with IDs:", playerIds)
   const players = await getPlayersByIds(playerIds)
 
   if (players.length === 0) {
     notFound()
   }
 
+  console.log("[Server] Fetching GAR data for comparison")
   const garData = await getPlayersGarData(playerIds)
 
   return (

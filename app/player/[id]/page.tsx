@@ -4,9 +4,11 @@ import { getPlayerById, getPlayerGarData, getPlayerStats } from "@/lib/data"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, TrendingUp } from 'lucide-react'
+import { ArrowLeft, TrendingUp } from "lucide-react"
 import { GarChart } from "@/components/gar-chart"
 import { PlayerStatsTable } from "@/components/player-stats-table"
+
+export const dynamic = "force-dynamic"
 
 interface PlayerPageProps {
   params: {
@@ -16,7 +18,7 @@ interface PlayerPageProps {
 
 export default async function PlayerPage({ params }: PlayerPageProps) {
   console.log("[Server] Rendering player page for ID:", params.id)
-  
+
   const playerId = Number.parseInt(params.id)
 
   if (isNaN(playerId)) {
@@ -32,7 +34,7 @@ export default async function PlayerPage({ params }: PlayerPageProps) {
 
   console.log("[Server] Fetching GAR data for player ID:", playerId)
   const garData = await getPlayerGarData(playerId)
-  
+
   console.log("[Server] Fetching stats for player ID:", playerId)
   const playerStats = await getPlayerStats(playerId)
   console.log("[Server] Stats fetched:", playerStats.length, "seasons")

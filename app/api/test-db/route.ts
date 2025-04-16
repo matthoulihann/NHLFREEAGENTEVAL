@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server"
 import { getPlayers } from "@/lib/data"
+import { testConnection } from "@/lib/db"
 
 export async function GET() {
   try {
     console.log("Database connection test API called")
 
-    // Log environment variables (redacted for security)
-    const dbUrl = process.env.DATABASE_URL || "No DATABASE_URL found"
-    const redactedUrl = dbUrl.replace(/:([^@]*)@/, ":****@")
-    console.log(`DATABASE_URL: ${redactedUrl}`)
+    // Test database connection
+    const isConnected = await testConnection()
 
     // Try to get players
     const players = await getPlayers()
@@ -17,6 +16,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       message: "Database connection test",
+      connected: isConnected,
       playerCount: players.length,
       usingMockData: players.length === 10 && players[0].name === "Connor McDavid",
       environment: process.env.NODE_ENV,
